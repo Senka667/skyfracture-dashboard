@@ -1,0 +1,261 @@
+# SKYFRACTURE™ Enterprise Security Edition - Advanced Detection Pack
+
+# Basic pack metadata
+name: "Advanced Security Detection Pack"
+version: "1.0"
+description: "Advanced detection patterns for enterprise security monitoring"
+author: "SKYFRACTURE Security Team"
+created_date: "2025-06-01"
+
+# Patterns define specific security anomalies to detect
+patterns:
+  # ===== BASIC PATTERNS =====
+  
+  # Simple time-based pattern
+  - name: "after_hours_access"
+    description: "Detects system access outside of normal business hours"
+    conditions:
+      - type: "time_window"
+        not_between: ["08:00", "18:00"]
+        weekdays_only: true
+    score_modifier: 0.6
+    recommended_actions:
+      - "Verify user identity through secondary channel"
+      - "Check if access was pre-approved for after-hours work"
+  
+  # ===== MULTI-CONDITION PATTERNS =====
+  
+  # Pattern with multiple conditions (all must match)
+  - name: "admin_after_hours_unusual_location"
+    description: "Admin access outside business hours from unusual location"
+    conditions:
+      - type: "time_window"
+        not_between: ["08:00", "18:00"]
+        weekdays_only: true
+      - type: "geo_location"
+        not_in_locations: ["New York", "Chicago", "San Francisco", "Boston"]
+      - type: "role_check"
+        roles: ["admin"]
+    # Higher score due to multiple risk factors
+    score_modifier: 0.85
+    recommended_actions:
+      - "Immediately contact admin via out-of-band channel"
+      - "Consider temporary account suspension"
+      - "Verify if travel was pre-approved"
+    # Severity level for integration with SIEM systems
+    severity: "high"
+  
+  # Pattern with IP range and event type conditions
+  - name: "sensitive_data_external_access"
+    description: "Access to sensitive data from external networks"
+    conditions:
+      - type: "ip_range"
+        not_in_ranges: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+      - type: "event_type"
+        types: ["file_access", "database_query", "data_export"]
+      - type: "data_classification"
+        classifications: ["confidential", "restricted", "pii"]
+    score_modifier: 0.8
+    recommended_actions:
+      - "Review data access logs"
+      - "Verify user authorization for sensitive data"
+      - "Check if VPN was used"
+    severity: "high"
+  
+  # ===== CROSS-FIELD CORRELATION PATTERNS =====
+  
+  # Pattern that correlates user role with location and time
+  - name: "executive_unusual_behavior"
+    description: "Executive user exhibiting unusual access patterns"
+    conditions:
+      - type: "role_check"
+        roles: ["executive", "c-level", "vp"]
+      - type: "compound"
+        operator: "OR"
+        conditions:
+          - type: "time_window"
+            not_between: ["07:00", "20:00"]
+            weekdays_only: true
+          - type: "geo_location"
+            not_in_locations: ["New York", "Chicago", "San Francisco", "London", "Tokyo"]
+          - type: "ip_range"
+            not_in_ranges: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+    # Dynamic score modifier based on how many subconditions match
+    score_modifier: 0.7
+    score_multiplier_per_condition: 1.2
+    recommended_actions:
+      - "Contact executive's assistant or security team"
+      - "Verify executive travel schedule"
+      - "Monitor for additional suspicious activity"
+    severity: "medium"
+  
+  # ===== SEQUENCE-BASED PATTERNS =====
+  
+  # Pattern detecting a sequence of events
+  - name: "password_spray_attack"
+    description: "Multiple failed logins across different accounts from same source"
+    conditions:
+      - type: "event_sequence"
+        sequence_type: "same_source_different_users"
+        event_type: "failed_login"
+        min_count: 5
+        max_minutes: 10
+    score_modifier: 0.9
+    recommended_actions:
+      - "Block source IP address"
+      - "Enable additional authentication factors"
+      - "Alert security team to potential brute force attack"
+    severity: "critical"
+  
+  # Pattern for detecting privilege escalation
+  - name: "privilege_escalation"
+    description: "User gained admin privileges after suspicious activities"
+    conditions:
+      - type: "event_sequence"
+        sequence:
+          - event_type: "failed_login"
+            min_count: 2
+          - event_type: "successful_login"
+          - event_type: "admin_access"
+        max_minutes: 30
+        same_user: true
+    score_modifier: 0.95
+    recommended_actions:
+      - "Immediately review admin actions"
+      - "Consider revoking admin privileges"
+      - "Investigate potential account compromise"
+    severity: "critical"
+  
+  # ===== BEHAVIORAL PATTERNS =====
+  
+  # Pattern based on deviation from user baseline
+  - name: "user_behavior_anomaly"
+    description: "User activity deviating significantly from established baseline"
+    conditions:
+      - type: "behavioral_baseline"
+        deviation_threshold: 3.0  # Standard deviations from normal
+        min_baseline_days: 14     # Minimum days of history needed
+        factors:
+          - "login_time"
+          - "session_duration"
+          - "data_access_volume"
+          - "application_usage"
+    # Dynamic scoring based on deviation amount
+    score_modifier: 0.6
+    score_multiplier_per_std_deviation: 0.1
+    recommended_actions:
+      - "Review user activity logs"
+      - "Compare with peer group behavior"
+      - "Consider user interview if deviation persists"
+    severity: "medium"
+  
+  # Pattern for detecting data exfiltration
+  - name: "potential_data_exfiltration"
+    description: "Unusual data transfer patterns indicating possible exfiltration"
+    conditions:
+      - type: "data_transfer"
+        direction: "outbound"
+        volume_threshold: 100     # MB
+        unusual_time: true
+        unusual_destination: true
+      - type: "compound"
+        operator: "OR"
+        conditions:
+          - type: "event_type"
+            types: ["file_download", "email_attachment", "cloud_upload"]
+          - type: "application"
+            names: ["browser", "email_client", "file_transfer"]
+    score_modifier: 0.85
+    recommended_actions:
+      - "Review data transfer logs"
+      - "Identify data types transferred"
+      - "Consider temporary network restrictions"
+    severity: "high"
+
+# ===== INTEGRATION SETTINGS =====
+
+# Integration settings for this detection pack
+integrations:
+  # SIEM integration settings
+  siem:
+    # Map SKYFRACTURE events to SIEM categories
+    event_mapping:
+      "successful_login": "ACCESS_SUCCESS"
+      "failed_login": "ACCESS_FAILURE"
+      "admin_access": "ADMIN_OPERATION"
+      "file_access": "DATA_ACCESS"
+      "vpn_connection": "NETWORK_ACCESS"
+    
+    # Minimum score to forward to SIEM
+    min_score: 0.5
+    
+    # Severity mapping
+    severity_mapping:
+      "low": "Info"
+      "medium": "Warning"
+      "high": "Alert"
+      "critical": "Critical"
+  
+  # Alert integration settings
+  alerts:
+    # Minimum score to generate alerts
+    min_score: 0.7
+    
+    # Where to send alerts based on severity
+    destinations:
+      "low":
+        - "security-team@example.com"
+      "medium":
+        - "security-team@example.com"
+        - "#security-alerts"
+      "high":
+        - "security-team@example.com"
+        - "#security-alerts"
+        - "pagerduty:security-oncall"
+      "critical":
+        - "security-team@example.com"
+        - "#security-alerts"
+        - "pagerduty:security-oncall"
+        - "sms:security-manager"
+
+# ===== TUNING PARAMETERS =====
+
+# Tuning parameters for different environments
+tuning:
+  # How long to remember events for sequence matching
+  event_memory_minutes: 30
+  
+  # Whether to apply this pack during business hours
+  apply_during_business_hours: true
+  
+  # Business hours definition
+  business_hours:
+    start: "09:00"
+    end: "17:00"
+    timezone: "America/New_York"
+    weekdays_only: true
+  
+  # Environment-specific settings
+  environments:
+    # Production environment (stricter)
+    production:
+      score_threshold: 0.65
+      alert_threshold: 0.75
+      max_alerts_per_hour: 20
+    
+    # Development environment (more lenient)
+    development:
+      score_threshold: 0.8
+      alert_threshold: 0.9
+      max_alerts_per_hour: 5
+  
+  # User role exemptions
+  role_exemptions:
+    # Security team members are exempt from certain patterns
+    security_team:
+      exempt_patterns: ["after_hours_access", "admin_unusual_network"]
+    
+    # System accounts have different thresholds
+    system_accounts:
+      score_multiplier: 0.5
+      exempt_patterns: ["user_behavior_anomaly"]

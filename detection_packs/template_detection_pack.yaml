@@ -1,0 +1,132 @@
+# SKYFRACTURE™ Enterprise Security Edition - Detection Pack Template
+# 
+# This template demonstrates the structure of a security detection pack
+# that can be loaded by the SecuritySkyfractureEngine.
+#
+# Detection packs allow security teams to define patterns of suspicious
+# activity without modifying the core engine code.
+
+# Basic pack metadata
+name: "Template Detection Pack"
+version: "1.0"
+description: "Template showing the structure of a SKYFRACTURE detection pack"
+author: "SKYFRACTURE Security Team"
+created_date: "2025-06-01"
+
+# Patterns define specific security anomalies to detect
+patterns:
+  # Each pattern has a unique name and description
+  - name: "after_hours_access"
+    description: "Detects system access outside of normal business hours"
+    
+    # Conditions define the criteria that trigger this pattern
+    conditions:
+      # Time window condition checks if events occur during specific hours
+      - type: "time_window"
+        # This example detects events outside 8am-6pm
+        not_between: ["08:00", "18:00"]
+        # Only apply on weekdays (Monday-Friday)
+        weekdays_only: true
+    
+    # Score modifier is added to the base event score when pattern matches
+    score_modifier: 0.6
+    
+    # Optional: Recommended actions when this pattern triggers
+    recommended_actions:
+      - "Verify user identity through secondary channel"
+      - "Check if access was pre-approved for after-hours work"
+  
+  # Another pattern example for unusual location access
+  - name: "unusual_location_access"
+    description: "Detects access from unusual geographic locations"
+    
+    conditions:
+      # Geo condition checks location against allowed list
+      - type: "geo_location"
+        not_in_locations: ["New York", "Chicago", "San Francisco", "Boston"]
+    
+    score_modifier: 0.7
+    
+    recommended_actions:
+      - "Verify user identity through secondary channel"
+      - "Consider temporary account lockdown"
+  
+  # Pattern for detecting brute force attempts
+  - name: "authentication_brute_force"
+    description: "Detects multiple failed logins followed by success"
+    
+    conditions:
+      # Sequence condition checks for patterns of events
+      - type: "event_sequence"
+        # This looks for 3+ failed logins followed by success
+        sequence: ["failed_login", "failed_login", "failed_login", "successful_login"]
+        # Events must occur within this time window
+        max_minutes: 10
+        # All events must be from same user
+        same_user: true
+    
+    # Higher score modifier due to severity
+    score_modifier: 0.9
+    
+    recommended_actions:
+      - "Force password reset"
+      - "Enable MFA if not already active"
+      - "Check for credential exposure"
+  
+  # Pattern for detecting admin access from unusual networks
+  - name: "admin_unusual_network"
+    description: "Detects administrative access from non-corporate networks"
+    
+    conditions:
+      # IP range condition checks source IP against allowed ranges
+      - type: "ip_range"
+        # These represent corporate network ranges
+        not_in_ranges: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+        # Only apply to admin events
+        event_types: ["admin_access", "config_change", "privilege_escalation"]
+    
+    score_modifier: 0.8
+    
+    recommended_actions:
+      - "Verify admin identity"
+      - "Check if VPN was used"
+      - "Review actions performed during session"
+
+# Optional: Integration settings for this detection pack
+integrations:
+  # SIEM integration settings
+  siem:
+    # Map SKYFRACTURE events to SIEM categories
+    event_mapping:
+      "successful_login": "ACCESS_SUCCESS"
+      "failed_login": "ACCESS_FAILURE"
+      "admin_access": "ADMIN_OPERATION"
+    
+    # Minimum score to forward to SIEM
+    min_score: 0.5
+  
+  # Alert integration settings
+  alerts:
+    # Minimum score to generate alerts
+    min_score: 0.7
+    
+    # Where to send alerts
+    destinations:
+      - "security_team@example.com"
+      - "#security-alerts"
+      - "pagerduty:security-oncall"
+
+# Optional: Tuning parameters
+tuning:
+  # How long to remember events for sequence matching
+  event_memory_minutes: 30
+  
+  # Whether to apply this pack during business hours
+  apply_during_business_hours: true
+  
+  # Business hours definition
+  business_hours:
+    start: "09:00"
+    end: "17:00"
+    timezone: "America/New_York"
+    weekdays_only: true
